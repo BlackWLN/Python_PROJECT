@@ -14,7 +14,8 @@ CREATE TABLE questions
     (
         question_id SERIAL PRIMARY KEY,     -- идентификатор вопроса
         question_text TEXT NOT NULL,        -- текст вопроса
-        theme VARCHAR(50) NOT NULL          -- тема вопроса
+        theme VARCHAR(50) NOT NULL,         -- тема вопроса
+        subject VARCHAR(50) NOT NULL        -- предмет
     );
 
 -- Таблица ответов на вопросы
@@ -30,9 +31,10 @@ CREATE TABLE answers
 CREATE TABLE history
     (
         test_date TIMESTAMP NOT NULL,       -- дата и время теста
-        account_id INT NOT NULL,               -- идентификатор пользователя сдавшего тест
+        account_id INT NOT NULL,            -- идентификатор пользователя сдавшего тест
         question_id INT NOT NULL,           -- идентификатор вопроса
-        result BOOLEAN NOT NULL             -- правильный/неправильный дан ответ на вопрос
+        result BOOLEAN NOT NULL,            -- правильный/неправильный дан ответ на вопрос
+        time_spent INT                      -- время в секундах, потраченное на ответ
     );
 
 -- Таблица с пользователями системы
