@@ -92,7 +92,7 @@ button {
   font-weight: 600;
   letter-spacing: 2px;
   background: transparent;
-  color: #fff;
+  color: #3d6aff;
   overflow: hidden;
   box-shadow: 0 0 0 0 transparent;
   -webkit-transition: all 0.2s ease-in;
