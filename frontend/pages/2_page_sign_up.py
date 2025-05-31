@@ -1,6 +1,9 @@
 import streamlit as st
 from streamlit.components.v1 import html
 
+
+st.set_page_config(page_title="Зарегистрироваться", page_icon="💻", layout="wide")
+
 # Custom CSS to style the page
 with open("style.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)

@@ -92,7 +92,7 @@ with st.container():
         st.markdown('<div class="centered-wrapper"><div class="centered-content">', unsafe_allow_html=True)
         st.button("Начать!")
         st.markdown('</div></div>', unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; color: #c7c7c7;'>Изучайте основы фундаментальной информатики и алгоритмы с помощью нашей платформы для подготовки к зачетам. Практикуйтесь на реальных экзаменационных вопросах и повышайте свою уверенность. </h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; color: #363636;'>Изучайте основы фундаментальной информатики и алгоритмы с помощью нашей платформы для подготовки к зачетам. Практикуйтесь на реальных экзаменационных вопросах и повышайте свою уверенность. </h4>", unsafe_allow_html=True)
     
 st.markdown('<div class="centered-wrapper"></div>', unsafe_allow_html=True)
 
