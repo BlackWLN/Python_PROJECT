@@ -1,0 +1,33 @@
+/* style.css */
+.stButton>button {
+    border: 1px solid #ddd;
+    background-color: white;
+    color: #333;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.stButton>button:hover {
+    border-color: #4a8bfc;
+    color: #4a8bfc;
+}
+
+.stTextInput>div>div>input {
+    padding: 12px 16px;
+    border-radius: 8px;
+}
+
+.back-button {
+    background: none;
+    border: none;
+    color: #4a8bfc;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+}
+
+.back-button:hover {
+    text-decoration: underline;
+}
