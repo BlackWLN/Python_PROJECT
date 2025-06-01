@@ -6,6 +6,7 @@ st.set_page_config(page_title="Основы структур данных", layo
 # CSS styling
 with open("quiz.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    
 
 # Initialize session state
 if 'current_question' not in st.session_state:
@@ -57,6 +58,83 @@ def prev_question():
     if st.session_state.current_question > 1:
         st.session_state.current_question -= 1
 
+# Custom CSS for styling
+st.markdown(
+    """
+    <style>
+    .main-container {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+    }
+    .nav-column {
+        width: 100%;
+        padding: 10px;
+        text-align: center; /* Center align text */
+    }
+    .question-column {
+        width: 100%;
+        padding: 10px;
+        text-align: center; /* Center align text */
+    }
+    .finish-column {
+        width: 100%;
+        padding: 10px;
+        text-align: center; /* Center align text */
+    }
+    .column-header {
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    .nav-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    .nav-buttons button {
+        width: 100%;
+    }
+    .question {
+        font-size: 1.1em;
+        margin-bottom: 10px;
+    }
+    .stRadio {
+        width: 100%; /* Make radio buttons full width */
+    }
+    .stRadio > label {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin-bottom: 5px;
+    }
+
+    .nav-controls {
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    /* Center content within the columns */
+    [data-testid="stColumn"] {
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* Horizontally center */
+    }
+
+    /* Optional: Ensure content takes up the full column height */
+    [data-testid="stColumn"] > div {
+        width: 100%;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 #Main app
 st.title("Основы структур данных")
 
@@ -66,7 +144,7 @@ nav_col, quest_col, finish_col = st.columns([1, 4, 1])
 # Main container with navigation and question
 with st.container():
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
-    
+
     # Left navigation column - Questions
     with nav_col:
         st.markdown("""
@@ -74,7 +152,7 @@ with st.container():
             <div class="column-header">Вопросы</div>
             <div class="nav-buttons">
         """, unsafe_allow_html=True)
-        
+
         for q_num in range(1, 6):
             button_class = ""
             if q_num == st.session_state.current_question:
@@ -101,14 +179,14 @@ with st.container():
         <div class="question-column">
             <div class="question-counter">Вопрос {st.session_state.current_question} из 5</div>
         """, unsafe_allow_html=True)
-        
+
         # Display current question
         current_q = st.session_state.current_question
         q_data = questions[current_q]
 
         if q_data["type"] == "mcq":
             st.markdown(f'<div class="question">{q_data["question"]}</div>', unsafe_allow_html=True)
-            
+
             # Display options
             selected = st.radio(
                 "Выбери ответ:",
@@ -117,14 +195,14 @@ with st.container():
                 key=f"q{current_q}_options",
                 label_visibility="collapsed"
             )
-            
+
             # Store answer
             if selected:
                 st.session_state.answers[current_q] = q_data["options"].index(selected)
 
         elif q_data["type"] == "text":
             st.markdown(f'<div class="question">{q_data["question"]}</div>', unsafe_allow_html=True)
-            
+
             # Text answer box
             answer = st.text_area(
                 "Пиши ответ здесь...",
@@ -132,44 +210,44 @@ with st.container():
                 key=f"q{current_q}_text",
                 label_visibility="collapsed"
             )
-            
+
             # Store answer
             if answer:
                 st.session_state.answers[current_q] = answer
-        
+
         # Navigation controls (Previous/Next)
         st.markdown('<div class="nav-controls">', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
-            st.button("← Назад", 
-                     on_click=prev_question, 
+            st.button("← Назад",
+                     on_click=prev_question,
                      disabled=st.session_state.current_question == 1,
                      key="prev_btn",
                      help="Перейти к предыдущему вопросу")
         with col2:
-            st.button("Вперед →", 
-                     on_click=next_question, 
+            st.button("Вперед →",
+                     on_click=next_question,
                      disabled=st.session_state.current_question == len(questions),
                      key="next_btn",
                      help="Перейти к следующему вопросу")
         st.markdown('</div>', unsafe_allow_html=True)
-        
+
         st.markdown("</div>", unsafe_allow_html=True)  # Close question-column
-    
+
     # Right finish column
     with finish_col:
         st.markdown("""
         <div class="finish-column">
             <div class="column-header">
         """, unsafe_allow_html=True)
-        
+
         # Finish button
         if st.button("Закончить", key="finish_button"):
             st.success("Тест закончен успешно!")
-        
+
         st.markdown("""
             </div>
         </div>
         """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)  # Close main-container
+
+    st.markdown('</div>', unsafe_allow_html=True)
