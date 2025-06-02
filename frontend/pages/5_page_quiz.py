@@ -1,253 +1,169 @@
 import streamlit as st
+import time
 
-# Set page configuration
-st.set_page_config(page_title="Основы структур данных", layout="wide")
-
-# CSS styling
-with open("quiz.css") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    
-
-# Initialize session state
-if 'current_question' not in st.session_state:
-    st.session_state.current_question = 1
-if 'answers' not in st.session_state:
-    st.session_state.answers = {1: None, 2: None, 3: None, 4: None, 5: None}
-
-# Question data
-questions = {
-    1: {
-        "type": "mcq",
-        "question": "Какая структура данных использует принцип первый зашел последний вышел?",
+# Data
+questions = [
+    {
+        "question": "Какая структура данных использует принцип 'первый зашел - первый вышел'?",
+        "type": "multiple_choice",
         "options": ["Очередь", "Стэк", "Связный список", "Дерево"],
-        "correct_answer": 1  # index of correct option (0-based)
+        "correct_answer": "Cтэк",
     },
-    2: {
-        "type": "mcq",
-        "question": "Какая структура данных использует принцип первый зашел первый вышел?",
-        "options": ["Массив", "Очередь", "Стэк", "Граф"],
-        "correct_answer": 0
+    {
+        "question": "Какая временная сложность добавления элемента в массив?",
+        "type": "multiple_choice",
+        "options": ["O(1)", "O(n)", "O(log n)", "O(n^2)"],
+        "correct_answer": "O(1)",
     },
-    3: {
-        "type": "mcq",
-        "question": "У какой структуры данных сложность вставки элемента в начало O(1)?",
-        "options": ["Массив", "Связный список", "Бинарное дерево", "Стэк"],
-        "correct_answer": 1
+    {
+        "question": "Как называется бинарное дерево, в котором каждый узел имеет или ноль или два ребенка?",
+        "type": "multiple_choice",
+        "options": ["Полное дерево", "Завершенное дерево", "Идеальное дерево", "Сбалансированное дерево"],
+        "correct_answer": "Полное дерево",
     },
-    4: {
+    {
+        "question": "Объясни разницу между стэком и очередью.",
         "type": "text",
-        "question": "Объясни разницу между стэком и очередью."
     },
-    5: {
-        "type": "mcq",
-        "question": "Какая структура данных обычно используется в рекурсии?",
-        "options": ["Очередь", "Стэк", "Дерево", "Хэщ-таблица"],
-        "correct_answer": 1
-    }
-}
+    {
+        "question": "Что подразумевается под временной сложностью?",
+        "type": "text",
+    },
+    {
+        "question": "Какая временная сложность поиска элемента в массиве?",
+        "type": "multiple_choice",
+        "options": ["O(1)", "O(n)", "O(log n)", "O(n^2)"],
+        "correct_answer": "O(n)",
+    },
+]
 
-# Navigation functions
-def go_to_question(q_num):
-    st.session_state.current_question = q_num
+if "current_question" not in st.session_state:
+    st.session_state.current_question = 0
+if "answers" not in st.session_state:
+    st.session_state.answers = [""] * len(questions)
+if "question_status" not in st.session_state:
+    st.session_state.question_status = ["Нет ответа"] * len(questions)
+if "start_time" not in st.session_state:
+    st.session_state.start_time = time.time()
+if "timer_running" not in st.session_state:
+    st.session_state.timer_running = True 
+if "total_time" not in st.session_state:
+    st.session_state.total_time = 30 * 60  # 30 minutes
+
+def format_time(seconds):
+    minutes, seconds = divmod(seconds, 60)
+    return f"{int(minutes):02}:{int(seconds):02}"
 
 def next_question():
-    if st.session_state.current_question < len(questions):
-        st.session_state.current_question += 1
+    st.session_state.current_question = min(
+        st.session_state.current_question + 1, len(questions) - 1
+    )
 
 def prev_question():
-    if st.session_state.current_question > 1:
-        st.session_state.current_question -= 1
+    st.session_state.current_question = max(
+        st.session_state.current_question - 1, 0
+    )
 
-# Custom CSS for styling
-st.markdown(
-    """
+def submit_answer():
+    question_index = st.session_state.current_question
+    current_question_data = questions[question_index]
+
+    if current_question_data["type"] == "multiple_choice":
+        if st.session_state.selected_option:
+            st.session_state.answers[question_index] = st.session_state.selected_option
+            st.session_state.question_status[question_index] = "Ответ сохранён"
+    elif current_question_data["type"] == "text":
+        if st.session_state.text_answer:
+            st.session_state.answers[question_index] = st.session_state.text_answer
+            st.session_state.question_status[question_index] = "Ответ сохранён"
+
+def navigate_to_question(question_number):
+    st.session_state.current_question = question_number
+
+def finish_test():
+    st.session_state.timer_running = False
+    st.write("Тест завершен!")
+
+st.set_page_config(page_title="Основы структур данных", page_icon="💻", layout="centered")
+
+
+st.markdown("""
     <style>
-    .main-container {
-        display: flex;
-        flex-direction: row;
-        width: 100%;
-    }
-    .nav-column {
-        width: 100%;
-        padding: 10px;
-        text-align: center; /* Center align text */
-    }
-    .question-column {
-        width: 100%;
-        padding: 10px;
-        text-align: center; /* Center align text */
-    }
-    .finish-column {
-        width: 100%;
-        padding: 10px;
-        text-align: center; /* Center align text */
-    }
-    .column-header {
-        font-size: 1.2em;
-        font-weight: bold;
-        margin-bottom: 10px;
-    }
-    .nav-buttons {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-    }
-    .nav-buttons button {
-        width: 100%;
-    }
-    .question {
-        font-size: 1.1em;
-        margin-bottom: 10px;
-    }
-    .stRadio {
-        width: 100%; /* Make radio buttons full width */
-    }
-    .stRadio > label {
-        display: block;
-        width: 100%;
-        text-align: left;
-        padding: 8px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        margin-bottom: 5px;
-    }
-
-    .nav-controls {
-        margin-top: 20px;
-        display: flex;
-        justify-content: space-between;
-    }
-
-    /* Center content within the columns */
-    [data-testid="stColumn"] {
-        display: flex;
-        flex-direction: column;
-        align-items: center; /* Horizontally center */
-    }
-
-    /* Optional: Ensure content takes up the full column height */
-    [data-testid="stColumn"] > div {
-        width: 100%;
-    }
-
+        div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div:first-child > div > div > div > button {
+            width: 40px;
+            height: 40px;
+            margin: 2px;
+        }
     </style>
-    """,
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
-#Main app
+# Header
+col1, col2 = st.columns([1, 3])
+with col1:
+    st.markdown("[Выйти из теста](#)")
+
+with col2:
+    if st.session_state.timer_running:
+        time_elapsed = int(time.time() - st.session_state.start_time)
+        remaining_time = max(0, st.session_state.total_time - time_elapsed)
+    else:
+        time_elapsed = int(time.time() - st.session_state.start_time)
+        remaining_time = max(0, st.session_state.total_time - time_elapsed)
+
+    st.markdown(f"<p style='text-align: right;'>{format_time(remaining_time)}</p>", unsafe_allow_html=True)
+
 st.title("Основы структур данных")
 
-# Create columns for layout
-nav_col, quest_col, finish_col = st.columns([1, 4, 1])
+# Progress Bar
+progress_value = (st.session_state.current_question + 1) / len(questions)
+col1, col2 = st.columns([3, 1])
 
-# Main container with navigation and question
-with st.container():
-    st.markdown('<div class="main-container">', unsafe_allow_html=True)
+with col1:
+    st.progress(progress_value)
+with col2:
+    unanswered_count = st.session_state.question_status.count("Нет ответа")
+    st.markdown(f"Вопрос {st.session_state.current_question + 1} из {len(questions)}", unsafe_allow_html=True)
 
-    # Left navigation column - Questions
-    with nav_col:
-        st.markdown("""
-        <div class="nav-column">
-            <div class="column-header">Вопросы</div>
-            <div class="nav-buttons">
-        """, unsafe_allow_html=True)
+# Main
+col1, col2, col3 = st.columns([1, 5, 2])
 
-        for q_num in range(1, 6):
-            button_class = ""
-            if q_num == st.session_state.current_question:
-                button_class = "current"
-            elif st.session_state.answers[q_num] is not None:
-                button_class = "answered"
-            else:
-                button_class = "unanswered"
+with col1:
+    for i in range(len(questions)):
+        status = st.session_state.question_status[i]
+        button_label = f"{i+1}"
+        button_type = "primary" if st.session_state.current_question == i else "secondary"
+        if st.session_state.question_status[i] == "Ответ сохранён":
+            button_type = "primary"
 
-            if st.button(
-                str(q_num),
-                key=f"nav_{q_num}",
-                on_click=go_to_question,
-                args=(q_num,),
-                type="secondary"
-            ):
-                pass
+        st.button(
+            button_label,
+            key=f"nav_{i}",
+            on_click=navigate_to_question,
+            args=(i,),
+            use_container_width=False,
+            type=button_type
+        )
+    
+with col2:
+    st.subheader(f"Вопрос {st.session_state.current_question + 1} из {len(questions)}")
 
-        st.markdown("""</div></div>""", unsafe_allow_html=True)
+    question_data = questions[st.session_state.current_question]
+    st.write(question_data["question"])
 
-    # Middle question column
-    with quest_col:
-        st.markdown(f"""
-        <div class="question-column">
-            <div class="question-counter">Вопрос {st.session_state.current_question} из 5</div>
-        """, unsafe_allow_html=True)
+    if question_data["type"] == "multiple_choice":
+        st.session_state.selected_option = st.radio(
+            "", options=question_data["options"], key=f"radio_{st.session_state.current_question}"
+        )
+    elif question_data["type"] == "text":
+        st.session_state.text_answer = st.text_area(
+            "Пиши свой ответ здесь...",
+            value=st.session_state.answers[st.session_state.current_question],
+            height=150,
+            key=f"text_area_{st.session_state.current_question}",
+        )
 
-        # Display current question
-        current_q = st.session_state.current_question
-        q_data = questions[current_q]
-
-        if q_data["type"] == "mcq":
-            st.markdown(f'<div class="question">{q_data["question"]}</div>', unsafe_allow_html=True)
-
-            # Display options
-            selected = st.radio(
-                "Выбери ответ:",
-                q_data["options"],
-                index=st.session_state.answers.get(current_q, None),
-                key=f"q{current_q}_options",
-                label_visibility="collapsed"
-            )
-
-            # Store answer
-            if selected:
-                st.session_state.answers[current_q] = q_data["options"].index(selected)
-
-        elif q_data["type"] == "text":
-            st.markdown(f'<div class="question">{q_data["question"]}</div>', unsafe_allow_html=True)
-
-            # Text answer box
-            answer = st.text_area(
-                "Пиши ответ здесь...",
-                value=st.session_state.answers.get(current_q, ""),
-                key=f"q{current_q}_text",
-                label_visibility="collapsed"
-            )
-
-            # Store answer
-            if answer:
-                st.session_state.answers[current_q] = answer
-
-        # Navigation controls (Previous/Next)
-        st.markdown('<div class="nav-controls">', unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.button("← Назад",
-                     on_click=prev_question,
-                     disabled=st.session_state.current_question == 1,
-                     key="prev_btn",
-                     help="Перейти к предыдущему вопросу")
-        with col2:
-            st.button("Вперед →",
-                     on_click=next_question,
-                     disabled=st.session_state.current_question == len(questions),
-                     key="next_btn",
-                     help="Перейти к следующему вопросу")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown("</div>", unsafe_allow_html=True)  # Close question-column
-
-    # Right finish column
-    with finish_col:
-        st.markdown("""
-        <div class="finish-column">
-            <div class="column-header">
-        """, unsafe_allow_html=True)
-
-        # Finish button
-        if st.button("Закончить", key="finish_button"):
-            st.success("Тест закончен успешно!")
-
-        st.markdown("""
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.button("Сохранить ответ", on_click=submit_answer)
+    
+with col3:
+    if st.button("Завершить", key="finish_button"):
+        st.success("Тест завершён!")
