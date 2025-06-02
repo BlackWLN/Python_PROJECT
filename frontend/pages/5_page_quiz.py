@@ -86,6 +86,18 @@ def finish_test():
 
 st.set_page_config(page_title="Основы структур данных", page_icon="💻", layout="centered")
 
+st.markdown(
+        """
+        <div class="home-button">
+            <a href="/" target="_self">
+                <button style="background-color: #f0f0f0; color: black; border: 1px solid #ddd; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    ←  Главная
+                </button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 st.markdown("""
     <style>

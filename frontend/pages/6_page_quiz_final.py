@@ -1,10 +1,13 @@
 import streamlit as st
 from datetime import datetime
+from streamlit_extras.stylable_container import stylable_container
 
-# Configure page
+
+with open("button_style_ease.css") as b:
+    button_style = b.read()
+
 st.set_page_config(page_title="Результаты теста", page_icon="💻", layout="wide")
 
-# Custom CSS for styling
 st.markdown("""
 <style>
     .header {
@@ -99,23 +102,47 @@ st.markdown("""
         border-top: 1px solid #e0e0e0;
         margin: 10px 0;
     }
-</style>
+    .stButton>button {
+        border: 2px solid white;
+        color: white;
+        background-color: #4a6bdf;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        border: 2px solid white;
+        color: white;
+        background-color: #3a5bcf;
+    }
+    .stButton>button:focus {
+        border: 2px solid white;
+        color: white;
+    }
+    </style>
 """, unsafe_allow_html=True)
+
+st.markdown(
+        """
+        <div class="home-button">
+            <a href="/" target="_self">
+                <button style="background-color: #f0f0f0; color: black; border: 1px solid #ddd; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    ←  Главная
+                </button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # Header
 st.markdown('<div class="header">Результаты теста</div>', unsafe_allow_html=True)
 st.markdown('<div class="subheader">Название теста</div>', unsafe_allow_html=True)
 
-# Create two columns
+# Main
 main_col, summary_col = st.columns([3, 1])
 
 with main_col:
-    # Score section
-    st.markdown("### Твой результат")
     st.markdown(f"Тест выполнен {datetime.now().strftime('%d.%m.%Y')}")
     st.markdown("---")
-
-    # Performance by topic
     st.markdown("**Успех по темам**")
     
     performance_html = """
@@ -131,27 +158,22 @@ with main_col:
     </table>
     """
     st.markdown(performance_html, unsafe_allow_html=True)
-
-    # Buttons
-    col1, col2 = st.columns(2)
-    with col1:
-        st.button("Вернуться на главную", key="dashboard_btn")
-    with col2:
-        st.button("Посмотреть ответы", key="review_btn")
+    with stylable_container(
+        key="get_started_button",
+        css_styles=button_style,
+        ):
+            st.button("Посмотреть ответы", key="review_btn")
 
     st.markdown("---")
-
-    # Recommendations
     st.markdown("### Рекомендации")
     st.markdown("Основываясь на твоих успехах, мы рекомендуем следующие темы.")
 
-    # Test 1
     with st.container():
         st.markdown("""
         <div class="test-card">
             <h3>Основы структур данных</h3>
             <p>Протестируй свои знания в структурах данных</p>
-            <p><strong>15 вопросов</strong> | <strong>30 минут</strong> | <strong>4.7/5.0</strong></p>
+            <p><strong>15 вопросов</strong> | <strong>30 минут</strong></p>
             <span class="topic-tag">Структуры данных</span>
             <div style="margin-top: 15px;">
                 <button style="background-color: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Начать тест</button>
@@ -159,13 +181,12 @@ with main_col:
         </div>
         """, unsafe_allow_html=True)
 
-    # Test 2
     with st.container():
         st.markdown("""
         <div class="test-card">
             <h3>Анализ алгоритмов</h3>
             <p>Вопросы о сложностной оценки по времени и по памяти</p>
-            <p><strong>10 вопросов</strong> | <strong>20 минут</strong> | <strong>4.2/5.0</strong></p>
+            <p><strong>10 вопросов</strong> | <strong>20 минут</strong></p>
             <span class="topic-tag">Алгоритмы</span>
             <span class="topic-tag">Сложностной анализ</span>
             <div style="margin-top: 15px;">
@@ -174,7 +195,6 @@ with main_col:
         </div>
         """, unsafe_allow_html=True)
 
-    # Test 3 with warning
     with st.container():
         st.markdown("""
         <div class="test-card">
@@ -182,7 +202,7 @@ with main_col:
                 <div>
                     <h3>Проблемы динамики</h3>
                     <p>Решай динамическое программирование</p>
-                    <p><strong>7 вопросов</strong> | <strong>30 минут</strong> | <strong>4.8/5.0</strong></p>
+                    <p><strong>7 вопросов</strong> | <strong>30 минут</strong></p>
                     <span class="topic-tag">Динамическое программирование</span>
                     <span class="topic-tag">Алгоритмы</span>
                 </div>
@@ -195,7 +215,6 @@ with main_col:
         """, unsafe_allow_html=True)
 
 with summary_col:
-    # Test Summary in a card with proper HTML structure
     st.markdown("""
     <div class="test-card">
         <div class="summary-title">Результаты теста</div>

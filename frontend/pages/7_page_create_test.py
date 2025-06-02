@@ -1,7 +1,7 @@
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
-with open("button_style.css") as b:
+with open("button_style_ease.css") as b:
     button_style = b.read()
 
 st.set_page_config(page_title="Создать тест", page_icon="💻", layout="wide")
@@ -27,8 +27,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+st.markdown(
+        """
+        <div class="home-button">
+            <a href="/" target="_self">
+                <button style="background-color: #f0f0f0; color: black; border: 1px solid #ddd; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    ←  Главная
+                </button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 st.title("Создать новый тест")
-st.subheader("Разработай свой кастомизированный тест с собственными вопросами и настройками")
+st.subheader("Разработай свой тест с кастомизированными вопросами и настройками")
 
 with st.expander("## Детали", expanded=True):
     st.markdown("**Информация о тесте**  \nНастрой базовую информацию о твоем тесте")
@@ -70,10 +83,10 @@ with st.form("question_form"):
             options.append(option)
         correct_answer = st.radio("Выбери правильный ответ", [f"Вариант {i+1}" for i in range(4)], index=0)
     
-    explanation = st.text_area("### Объяснение(опционально)", placeholder="Объясни правильный ответ")
+    explanation = st.text_area("### Объяснение (опционально)", placeholder="Объясни правильный ответ")
     question_difficulty = st.select_slider("### Сложность", ["Легкий", "Средний", "Сложный"], value="Средний")
     
-    submitted = st.form_submit_button("Сохранить вопрос")
+    submitted = st.form_submit_button("Сохранить вопрос", type="primary")
     if submitted:
         st.success("Успешно!")
 
@@ -82,10 +95,10 @@ with stylable_container(
         key="get_started_button",
         css_styles=button_style,
     ):
-        st.markdown('<div class="centered-wrapper"><div class="centered-content">', unsafe_allow_html=True)
+        st.markdown('<div>', unsafe_allow_html=True)
         if st.button("Создать тест"):
             if not test_title:
                 st.error("Пожалуйста, напишите название теста")
             else:
                 st.success(f"Тест '{test_title}' создан успешно!")
-        st.markdown('</div></div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)

@@ -96,8 +96,7 @@ with st.container():
     
 st.markdown('<div class="centered-wrapper"></div>', unsafe_allow_html=True)
 
-
-# Features Section
+# Main
 st.header("Наши возможности", divider="blue")
 
 features = st.columns(3)
@@ -125,7 +124,6 @@ with features[2]:
                     'учащихся в благоприятной среде</p>'
                     '</div>', unsafe_allow_html=True)
 
-# Stats Section
 st.header("Наш вклад", divider="blue")
 
 stats = st.columns(3)
@@ -153,7 +151,7 @@ with stats[2]:
 
 
 st.markdown('<div class="centered-wrapper"><div class="centered-content">', unsafe_allow_html=True)
-st.markdown("<h1 style='text-align: center; margin-bottom: 10px;'>Готовы сдать зачеты по ФИ и АиСД на отлично?</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; margin-bottom: 10px;'>Готовы сдать зачеты на отлично?</h1>", unsafe_allow_html=True)
 with stylable_container(key="get_started_button_2", css_styles=button_style):
     st.markdown('<div class="centered-wrapper"><div class="centered-content">', unsafe_allow_html=True)
     st.button("ДА!")

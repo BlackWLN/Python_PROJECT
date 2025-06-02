@@ -1,5 +1,9 @@
 import streamlit as st
 from streamlit.components.v1 import html
+from streamlit_extras.stylable_container import stylable_container
+
+with open("button_style.css") as b:
+    button_style = b.read()
 
 st.set_page_config(page_title="Выбрать тест", page_icon="💻", layout="wide")
 
@@ -31,6 +35,21 @@ st.markdown("""
         font-size: 0.8em;
         margin-right: 5px;
         margin-bottom: 5px;
+    }
+    .stButton>button {
+        border: 2px solid white;
+        color: white;
+        background-color: #4a6bdf;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        border: 2px solid white;
+        color: white;
+        background-color: #3a5bcf;
+    }
+    .stButton>button:focus {
+        border: 2px solid white;
+        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -70,8 +89,11 @@ with st.expander("Фильтр тестов"):
             placeholder="Выбери тему"
         )
         
-
-st.button("Сделать свой тест", type="primary")
+with stylable_container(
+        key="get_started_button",
+        css_styles=button_style,
+        ):
+            st.button("Сделать свой тест", type="primary")
 
 # Recommended section
 st.header("Рекомендовано")
@@ -83,7 +105,7 @@ with st.container():
     <div class="test-card">
         <h3>Непростые алгоритмы</h3>
         <p>Попытайся одолеть их!</p>
-        <p><strong>8 вопросов</strong> | <strong>25 минут</strong> | <strong>4.9/5.0</strong></p>
+        <p><strong>8 вопросов</strong> | <strong>25 минут</strong></p>
         <span class="topic-tag">Алгоритмы</span>
         <div style="margin-top: 15px;">
             <button style="background-color: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Начать тест</button>
@@ -100,7 +122,7 @@ with st.container():
     <div class="test-card">
         <h3>Основы структур данных</h3>
         <p>Протестируй свои знания в структурах данных</p>
-        <p><strong>15 вопросов</strong> | <strong>30 минут</strong> | <strong>4.7/5.0</strong></p>
+        <p><strong>15 вопросов</strong> | <strong>30 минут</strong></p>
         <span class="topic-tag">Структуры данных</span>
         <div style="margin-top: 15px;">
             <button style="background-color: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Начать тест</button>
@@ -114,7 +136,7 @@ with st.container():
     <div class="test-card">
         <h3>Анализ алгоритмов</h3>
         <p>Вопросы о сложностной оценки по времени и по памяти</p>
-        <p><strong>10 вопросов</strong> | <strong>20 минут</strong> | <strong>4.2/5.0</strong></p>
+        <p><strong>10 вопросов</strong> | <strong>20 минут</strong></p>
         <span class="topic-tag">Алгоритмы</span>
         <span class="topic-tag">Сложностной анализ</span>
         <div style="margin-top: 15px;">
@@ -131,7 +153,7 @@ with st.container():
             <div>
                 <h3>Проблемы динамики</h3>
                 <p>Решай динамическое программирование</p>
-                <p><strong>7 вопросов</strong> | <strong>30 минут</strong> | <strong>4.8/5.0</strong></p>
+                <p><strong>7 вопросов</strong> | <strong>30 минут</strong></p>
                 <span class="topic-tag">Динамическое программирование</span>
                 <span class="topic-tag">Алгоритмы</span>
             </div>

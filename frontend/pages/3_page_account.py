@@ -3,10 +3,13 @@ from streamlit_extras.metric_cards import style_metric_cards
 import plotly.graph_objects as go
 import pandas as pd
 
-# Page configuration
+from streamlit_extras.stylable_container import stylable_container
+
+with open("button_style_ease.css") as b:
+    button_style = b.read()
+
 st.set_page_config(page_title="Главная", page_icon="💻", layout="wide")
 
-# Custom CSS for styling
 st.markdown("""
 <style>
     .st-emotion-cache-1y4p8pa {
@@ -40,14 +43,41 @@ st.markdown("""
         margin-bottom: 10px;
         background-color: #f9f9f9;
     }
+    .stButton>button {
+        border: 2px solid white;
+        color: white;
+        background-color: #4a6bdf;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        border: 2px solid white;
+        color: white;
+        background-color: #3a5bcf;
+    }
+    .stButton>button:focus {
+        border: 2px solid white;
+        color: white;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+st.markdown(
+        """
+        <div class="home-button">
+            <a href="/" target="_self">
+                <button style="background-color: #f0f0f0; color: black; border: 1px solid #ddd; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    ←  Главная
+                </button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # Header
 st.title("Добро пожаловать!")
 st.subheader("Продолжай свой путь в изучении информатики")
 
-# Metrics row
 col1, col2, col3 = st.columns(3)
 with col1:
     st.metric(label="Тестов выполнено", value="12", delta="+2 с прошлой недели")
@@ -58,15 +88,12 @@ with col3:
 
 style_metric_cards()
 
-# Main content columns
+# Main
 col_left, col_right = st.columns([2, 1])
 
 with col_left:
-    # Recent Test Results section
-    st.header("Recent Test Results")
-    st.caption("Your latest performance overview")
-    
-    # Test items with checkboxes
+    st.header("Недавние результаты")
+    st.caption("Просмотр ваших послежних успехов")
     st.markdown("""
     <div class="test-item">
         <input type="checkbox" disabled> <strong>Основы структур данных</strong><br>
@@ -82,22 +109,22 @@ with col_left:
     </div>
     """, unsafe_allow_html=True)
     
-    
-    # Quick Actions
     st.header("Быстрые действия")
-    action_col1, action_col2, action_col3 = st.columns(3)
+    action_col1, action_col2 = st.columns(2)
     with action_col1:
-        if st.button("Начать тест", use_container_width=True):
+        if st.button("Начать тест", use_container_width=True, type="primary"):
             st.session_state.action = "new_test"
     with action_col2:
-        if st.button("Создать новый", use_container_width=True):
+        if st.button("Создать новый", use_container_width=True, type="primary"):
             st.session_state.action = "create_test"
-    with action_col3:
-        if st.button("Посмотреть аналитику", use_container_width=True):
-            st.session_state.action = "analytics"
+
+    with stylable_container(
+        key="get_started_button",
+        css_styles=button_style,
+    ):
+        st.button("Посмотреть аналитику", key="review_btn")
 
 with col_right:
-    # Learning Progress
     st.header("Прогресс в обучении")
     st.caption("Ваш общий прогресс в этом месяце")
     
