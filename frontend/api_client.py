@@ -6,6 +6,7 @@
 3. http://localhost:8000             - дефолт для локальной разработки
 """
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -19,12 +20,25 @@ class ApiError(Exception):
         self.status_code = status_code
 
 
+def _secrets_file_exists() -> bool:
+    """Streamlit печатает красный варнинг прямо в приложение при любом
+    обращении к st.secrets, если файла secrets.toml нет вообще (например на
+    Railway, где всё идёт через переменные окружения) - даже если мы сами
+    ловим исключение. Поэтому сначала проверяем на диске, стоит ли туда лезть."""
+    candidates = [
+        Path(__file__).resolve().parent / ".streamlit" / "secrets.toml",
+        Path.home() / ".streamlit" / "secrets.toml",
+    ]
+    return any(p.exists() for p in candidates)
+
+
 def get_base_url() -> str:
-    try:
-        if "API_BASE_URL" in st.secrets:
-            return st.secrets["API_BASE_URL"].rstrip("/")
-    except Exception:
-        pass
+    if _secrets_file_exists():
+        try:
+            if "API_BASE_URL" in st.secrets:
+                return st.secrets["API_BASE_URL"].rstrip("/")
+        except Exception:
+            pass
     return os.environ.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
 
 
