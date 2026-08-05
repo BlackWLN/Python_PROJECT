@@ -1,139 +1,132 @@
 import streamlit as st
 from streamlit_extras.metric_cards import style_metric_cards
-import plotly.graph_objects as go
-import pandas as pd
 from streamlit_extras.stylable_container import stylable_container
 
-with open("button_style_ease.css") as b:
-    button_style = b.read()
+import api_client
+from auth_utils import is_authenticated, current_user, log_out
+from styles import read_css, hide_streamlit_chrome
 
 st.set_page_config(page_title="Главная", page_icon="💻", layout="wide")
+hide_streamlit_chrome()
+
+button_style = read_css("button_style_ease.css")
+
+if not is_authenticated():
+    # Анонимного посетителя сразу отправляем на публичный лендинг вместо стены логина
+    st.switch_page("pages/3_page_greeting.py")
 
 st.markdown("""
 <style>
-    .st-emotion-cache-1y4p8pa {
-        padding: 2rem 1rem;
-    }
-    .test-item {
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #eee;
-    }
-    .progress-container {
-        background-color: #f0f2f6;
-        border-radius: 10px;
-        padding: 10px;
-        margin-bottom: 15px;
-    }
-    .progress-bar {
-        height: 10px;
-        border-radius: 5px;
-        background-color: #e0e0e0;
-        margin-top: 5px;
-    }
-    .progress-fill {
-        height: 100%;
-        border-radius: 5px;
-        background-color: #4CAF50;
-    }
-    .achievement-card {
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
-        background-color: #f9f9f9;
-    }
-    .stButton>button {
-        border: 2px solid white;
-        color: white;
-        background-color: #4a6bdf;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        border: 2px solid white;
-        color: white;
-        background-color: #3a5bcf;
-    }
-    .stButton>button:focus {
-        border: 2px solid white;
-        color: white;
-    }
+    .test-item { padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+    .achievement-card { border: 1px solid #ddd; border-radius: 10px; padding: 15px; margin-bottom: 10px; background-color: #f9f9f9; }
+    .topic-tag { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; margin-right: 5px; margin-bottom: 5px; }
+    .topic-tag.weak { background-color: #fdecea; color: #c0392b; }
+    .topic-tag.strong { background-color: #eafaf1; color: #27ae60; }
+    .stButton>button { border: 2px solid white; color: white; background-color: #4a6bdf; transition: all 0.3s ease; }
+    .stButton>button:hover { border: 2px solid white; color: white; background-color: #3a5bcf; }
+    .stButton>button:focus { border: 2px solid white; color: white; }
 </style>
 """, unsafe_allow_html=True)
 
-# Header
-st.title("Добро пожаловать!")
-st.subheader("Продолжай свой путь в изучении информатики")
+header_left, header_right = st.columns([2, 3], vertical_alignment="center")
+with header_left:
+    st.subheader("Добро пожаловать!")
+with header_right:
+    action_cols = st.columns(3)
+    with action_cols[0]:
+        if st.button("Начать тест", use_container_width=True, type="primary", key="start_test_top"):
+            st.switch_page("pages/4_page_select_test.py")
+    with action_cols[1]:
+        if st.button("Добавить вопрос", use_container_width=True, key="add_question_top"):
+            st.switch_page("pages/7_page_create_test.py")
+    with action_cols[2]:
+        if st.button("Выйти", use_container_width=True, key="logout_top"):
+            log_out()
+            st.rerun()
+    st.caption(f"Вошли как **{current_user().get('email', '')}**")
+
+st.divider()
+
+try:
+    stats = api_client.get_statistics()
+except api_client.ApiError as exc:
+    st.error(f"Не удалось загрузить статистику: {exc}")
+    stats = None
+
+if not stats or stats.get("total_tests", 0) == 0:
+    st.info("Ты ещё не прошёл ни одного теста. Начни прямо сейчас!")
+    with stylable_container(key="start_first_test", css_styles=button_style):
+        if st.button("Пройти первый тест", type="primary"):
+            st.switch_page("pages/4_page_select_test.py")
+    st.stop()
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric(label="Тестов выполнено", value="12", delta="+2 с прошлой недели")
+    st.metric(label="Тестов пройдено", value=stats["total_tests"])
 with col2:
-    st.metric(label="Среднее выполнение", value="82%", delta="+5% повышения")
+    st.metric(label="Средний результат", value=f"{round(stats['average_score'] * 100)}%")
 with col3:
-    st.metric(label="Время в тренажере", value="24h", delta="В этом месяце")
+    minutes = stats["time_spent"] // 60
+    st.metric(label="Время в тренажере", value=f"{minutes} мин")
 
 style_metric_cards()
 
-# Main
 col_left, col_right = st.columns([2, 1])
 
 with col_left:
     st.header("Недавние результаты")
-    st.caption("Просмотр ваших послежних успехов")
-    st.markdown("""
-    <div class="test-item">
-        <input type="checkbox" disabled> <strong>Основы структур данных</strong><br>
-        <span style="color: #666;">2 days ago</span>
-    </div>
-    <div class="test-item">
-        <input type="checkbox" disabled> <strong>Анализ алгоритмов</strong><br>
-        <span style="color: #666;">1 week ago</span>
-    </div>
-    <div class="test-item">
-        <input type="checkbox" disabled> <strong>Что-нибудь еще</strong><br>
-        <span style="color: #666;">2 weeks ago</span>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.header("Быстрые действия")
-    action_col1, action_col2 = st.columns(2)
-    with action_col1:
-        if st.button("Начать тест", use_container_width=True, type="primary"):
-            st.session_state.action = "new_test"
-    with action_col2:
-        if st.button("Создать новый", use_container_width=True, type="primary"):
-            st.session_state.action = "create_test"
+    st.caption("Твои последние ответы")
 
-    with stylable_container(
-        key="get_started_button",
-        css_styles=button_style,
-    ):
-        st.button("Посмотреть аналитику", key="review_btn")
+    recent_html = ""
+    for item in stats.get("recent_results", [])[:5]:
+        mark = "✅" if item["result"] else "❌"
+        date_str = item["date"].split("T")[0] if isinstance(item["date"], str) else str(item["date"])
+        recent_html += f"""
+        <div class="test-item">
+            {mark} <strong>{item['theme']}</strong><br>
+            <span style="color: #666;">{date_str}</span>
+        </div>
+        """
+    st.markdown(recent_html or "<p>Пока нет данных</p>", unsafe_allow_html=True)
 
 with col_right:
-    st.header("Прогресс в обучении")
-    st.caption("Ваш общий прогресс в этом месяце")
-    
-    progress_data = {
-        "Topic": ["Алгоритмы", "Структуры данных", "Анализ сложности"],
-        "Progress": [75, 60, 85]
-    }
-    
-    for topic, progress in zip(progress_data["Topic"], progress_data["Progress"]):
-        st.markdown(f"""
-        <div class="progress-container">
-            <div style="display: flex; justify-content: space-between;">
-                <span><strong>{topic}</strong></span>
-                <span>{progress}%</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: {progress}%"></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
+    st.header("Твой прогресс")
+    st.caption(f"Место в общем рейтинге: {stats['rank']} из {stats['total_users']}")
 
+    try:
+        leaderboard = api_client.get_leaderboard(limit=10)
+    except api_client.ApiError:
+        leaderboard = []
 
-st.sidebar.success("Select Any Page from here")
+    if leaderboard:
+        my_id = current_user().get("account_id")
+        for place, entry in enumerate(leaderboard, start=1):
+            line = f"{place}. {entry['account_name']} — {round(entry['average_score'] * 100)}%"
+            if entry["account_id"] == my_id:
+                st.markdown(f"**{line} (ты)**")
+            else:
+                st.caption(line)
 
+    if stats.get("weak_themes"):
+        st.markdown("**Стоит подтянуть:**")
+        st.markdown(
+            "".join(f'<span class="topic-tag weak">{t}</span>' for t in stats["weak_themes"]),
+            unsafe_allow_html=True
+        )
+    if stats.get("strong_themes"):
+        st.markdown("**Сильные темы:**")
+        st.markdown(
+            "".join(f'<span class="topic-tag strong">{t}</span>' for t in stats["strong_themes"]),
+            unsafe_allow_html=True
+        )
+    if not stats.get("weak_themes") and not stats.get("strong_themes"):
+        st.write("Пройди ещё несколько тестов, чтобы увидеть разбивку по темам.")
 
+st.divider()
+bottom_cols = st.columns(2)
+with bottom_cols[0]:
+    if st.button("Начать тест", use_container_width=True, type="primary", key="start_test_bottom"):
+        st.switch_page("pages/4_page_select_test.py")
+with bottom_cols[1]:
+    if st.button("Добавить вопрос", use_container_width=True, key="add_question_bottom"):
+        st.switch_page("pages/7_page_create_test.py")

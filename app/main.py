@@ -10,10 +10,11 @@ app = FastAPI(
 )
 
 # Set up CORS
+cors_origins = settings.BACKEND_CORS_ORIGINS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins if cors_origins != "*" else ["*"],
+    allow_credentials=cors_origins != "*",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -24,4 +25,9 @@ app.include_router(quiz.router, prefix=f"{settings.API_V1_STR}/quiz", tags=["qui
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Quiz API"} 
+    return {"message": "Welcome to Quiz API"}
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}

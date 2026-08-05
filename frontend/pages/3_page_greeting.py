@@ -2,16 +2,25 @@ import streamlit as st
 from streamlit_extras.colored_header import colored_header
 from streamlit_extras.stylable_container import stylable_container
 
+from auth_utils import is_authenticated, render_logout_sidebar
+from styles import read_css, hide_streamlit_chrome
 
-with open("button_style.css") as b:
-    button_style = b.read()
-
-# Page configuration
+# Page configuration - must be the very first Streamlit command on the page
 st.set_page_config(
     page_title="Тренажер для подготовки к ФИ и АиСД",
     page_icon="💻",
     layout="wide"
 )
+hide_streamlit_chrome()
+
+button_style = read_css("button_style.css")
+
+
+def go_to_app():
+    if is_authenticated():
+        st.switch_page("pages/4_page_select_test.py")
+    else:
+        st.switch_page("pages/1_page_sign_in.py")
 
 # Custom CSS
 st.markdown("""
@@ -90,7 +99,8 @@ with st.container():
         css_styles=button_style,
     ):
         st.markdown('<div class="centered-wrapper"><div class="centered-content">', unsafe_allow_html=True)
-        st.button("Начать!")
+        if st.button("Начать!", key="start_button_top"):
+            go_to_app()
         st.markdown('</div></div>', unsafe_allow_html=True)
     st.markdown("<h4 style='text-align: center; color: #363636;'>Изучайте основы фундаментальной информатики и алгоритмы с помощью нашей платформы для подготовки к зачетам. Практикуйтесь на реальных экзаменационных вопросах и повышайте свою уверенность. </h4>", unsafe_allow_html=True)
     
@@ -154,10 +164,13 @@ st.markdown('<div class="centered-wrapper"><div class="centered-content">', unsa
 st.markdown("<h1 style='text-align: center; margin-bottom: 10px;'>Готовы сдать зачеты на отлично?</h1>", unsafe_allow_html=True)
 with stylable_container(key="get_started_button_2", css_styles=button_style):
     st.markdown('<div class="centered-wrapper"><div class="centered-content">', unsafe_allow_html=True)
-    st.button("ДА!")
+    if st.button("ДА!", key="start_button_bottom"):
+        go_to_app()
     st.markdown('</div></div>', unsafe_allow_html=True)
 
 st.markdown('</div></div>', unsafe_allow_html=True)
 # Footer
 st.markdown("---")
 st.markdown("© 2025 Black_WLN & sswerty & annplv & mariakotik456")
+
+render_logout_sidebar()

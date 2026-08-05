@@ -1,10 +1,16 @@
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
-with open("button_style_ease.css") as b:
-    button_style = b.read()
+import api_client
+from auth_utils import require_login, render_logout_sidebar
+from styles import read_css, hide_streamlit_chrome
 
 st.set_page_config(page_title="Создать тест", page_icon="💻", layout="wide")
+hide_streamlit_chrome()
+
+button_style = read_css("button_style_ease.css")
+
+require_login()
 
 st.markdown("""
     <style>
@@ -23,82 +29,80 @@ st.markdown("""
             border: 2px solid white;
             color: white;
         }
-        
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown(
-        """
-        <div class="home-button">
-            <a href="/" target="_self">
-                <button style="background-color: #f0f0f0; color: black; border: 1px solid #ddd; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                    ←  Главная
-                </button>
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+if st.button("← Главная", key="home_button"):
+    st.switch_page("home_page.py")
 
-st.title("Создать новый тест")
-st.subheader("Разработай свой тест с кастомизированными вопросами и настройками")
+st.title("Добавить вопрос")
+st.subheader("Предложи свой вопрос — он попадёт в общий банк вопросов и станет доступен всем, кто проходит тест по этой теме")
 
-with st.expander("## Детали", expanded=True):
-    st.markdown("**Информация о тесте**  \nНастрой базовую информацию о твоем тесте")
-    
-    test_title = st.text_input("### Название теста", placeholder="Введи название, описывающее твой тест")
-    test_description = st.text_area("### Описание (опционально)", placeholder="Опиши, какие знания может проверить твой тест")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        difficulty = st.selectbox("### Уровень сложности", ["Легкий", "Средний", "Сложный"], index=1)
-    with col2:
-        time_limit = st.number_input("Лимит времени (в минутах)", min_value=1, value=30)
-    
-    topics = st.multiselect(
-        "### Темы",
-        ["Алгоритмы", "Анализ сложности", "Динамическое программирование", "Поиск", "Структуры данных"],
-        default=["Алгоритмы", "Анализ сложности"]
-    )
+try:
+    subjects = api_client.get_subjects()
+except api_client.ApiError as exc:
+    st.error(f"Не удалось загрузить существующие предметы: {exc}")
+    subjects = []
 
-st.divider()
+subject_names = [s["subject"] for s in subjects]
+themes_by_subject = {s["subject"]: s["themes"] for s in subjects}
 
-st.subheader("Вопросы")
-st.markdown("**Добавить вопросы**  \nСделай новые вопросы для твоего теста")
+NEW_OPTION = "+ Новый предмет"
 
 with st.form("question_form"):
-    col1, col2 = st.columns(2)
-    with col1:
-        question_topic = st.selectbox("### Тема", topics if topics else ["Алгоритмы"])
-    with col2:
-        question_type = st.selectbox("### Тип вопроса", ["Множественный выбор", "Правда или ложь", "С коротким ответом"], index=0)
-    
-    question_text = st.text_area("### Вопрос", placeholder="Вводи свой вопрос здесь")
-    
-    if question_type == "Множественный выбор":
-        st.markdown("### Варианты ответа")
-        options = []
-        for i in range(4):
-            option = st.text_input(f"Вариант {i+1}", key=f"option_{i}", placeholder=f"Вариант {i+1}")
+    subject_choice = st.selectbox("Предмет", subject_names + [NEW_OPTION])
+    if subject_choice == NEW_OPTION:
+        subject = st.text_input("Название нового предмета", placeholder="Например: ФИ")
+        theme = st.text_input("Тема", placeholder="Например: Кодирование")
+    else:
+        subject = subject_choice
+        existing_themes = themes_by_subject.get(subject, [])
+        theme_choice = st.selectbox("Тема", existing_themes + ["+ Новая тема"])
+        theme = st.text_input("Название новой темы") if theme_choice == "+ Новая тема" else theme_choice
+
+    question_text = st.text_area("Вопрос", placeholder="Введи текст вопроса")
+
+    st.markdown("**Варианты ответа** (заполни минимум 2, отметь правильный)")
+    option_cols = st.columns(2)
+    options = []
+    for i in range(4):
+        with option_cols[i % 2]:
+            option = st.text_input(f"Вариант {i + 1}", key=f"option_{i}", placeholder=f"Вариант {i + 1}")
             options.append(option)
-        correct_answer = st.radio("Выбери правильный ответ", [f"Вариант {i+1}" for i in range(4)], index=0)
-    
-    explanation = st.text_area("### Объяснение (опционально)", placeholder="Объясни правильный ответ")
-    question_difficulty = st.select_slider("### Сложность", ["Легкий", "Средний", "Сложный"], value="Средний")
-    
+
+    non_empty_indices = [i for i, o in enumerate(options) if o.strip()]
+    correct_label = st.radio(
+        "Правильный ответ",
+        options=[f"Вариант {i + 1}" for i in non_empty_indices] or ["Заполни варианты выше"],
+    )
+
     submitted = st.form_submit_button("Сохранить вопрос", type="primary")
+
     if submitted:
-        st.success("Успешно!")
+        if not subject or not subject.strip():
+            st.error("Укажи предмет")
+        elif not theme or not theme.strip():
+            st.error("Укажи тему")
+        elif not question_text or not question_text.strip():
+            st.error("Введи текст вопроса")
+        elif len(non_empty_indices) < 2:
+            st.error("Заполни хотя бы 2 варианта ответа")
+        else:
+            correct_idx = int(correct_label.split()[-1]) - 1
+            answers_payload = [
+                {"answer_text": options[i].strip(), "is_correct": i == correct_idx}
+                for i in non_empty_indices
+            ]
+            try:
+                created = api_client.create_question(
+                    question_text=question_text.strip(),
+                    theme=theme.strip(),
+                    subject=subject.strip(),
+                    answers=answers_payload,
+                )
+                st.success(f"Вопрос добавлен в тему «{created['theme']}»!")
+                st.page_link("pages/4_page_select_test.py", label="Пройти тест по этой теме", icon="📝")
+            except api_client.ApiError as exc:
+                st.error(f"Не удалось сохранить вопрос: {exc}")
 
-
-with stylable_container(
-        key="get_started_button",
-        css_styles=button_style,
-    ):
-        st.markdown('<div>', unsafe_allow_html=True)
-        if st.button("Создать тест"):
-            if not test_title:
-                st.error("Пожалуйста, напишите название теста")
-            else:
-                st.success(f"Тест '{test_title}' создан успешно!")
-        st.markdown('</div>', unsafe_allow_html=True)
+render_logout_sidebar()

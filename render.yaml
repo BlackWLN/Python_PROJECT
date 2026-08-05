@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: exam-trainer-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      # Connection string to your managed Postgres (Neon/Supabase/Render Postgres).
+      # Set the real value in the Render dashboard, it's not stored in git.
+      - key: DATABASE_URL
+        sync: false
+      # Comma-separated list of frontend origins allowed to call this API,
+      # e.g. https://your-app.streamlit.app
+      - key: BACKEND_CORS_ORIGINS
+        sync: false

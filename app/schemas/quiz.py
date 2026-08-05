@@ -30,6 +30,20 @@ class Answer(AnswerBase):
     class Config:
         from_attributes = True
 
+class AnswerOption(BaseModel):
+    answer_text: str
+    is_correct: bool
+
+class QuestionWithAnswersCreate(BaseModel):
+    question_text: str
+    theme: str
+    subject: str
+    answers: List[AnswerOption]
+
+class SubjectThemes(BaseModel):
+    subject: str
+    themes: List[str]
+
 class TestResult(BaseModel):
     question_id: int
     selected_answer_id: int
@@ -53,6 +67,12 @@ class ThemeStatistics(BaseModel):
     correct_answers: int
     average_time: float
     last_test_date: Optional[datetime]
+
+class LeaderboardEntry(BaseModel):
+    account_id: int
+    account_name: str
+    total_tests: int
+    average_score: float
 
 class TestSettings(BaseModel):
     themes: List[str]

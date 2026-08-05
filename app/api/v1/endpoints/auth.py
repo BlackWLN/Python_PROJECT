@@ -10,8 +10,20 @@ from app.services.auth import (
     get_user
 )
 from app.db.session import get_db
+from app.api.deps import get_current_user
 
 router = APIRouter()
+
+
+@router.get("/me", response_model=User)
+def read_current_user(current_user: dict = Depends(get_current_user)):
+    """Данные текущего пользователя по токену - фронтенд дёргает это сразу
+    после логина, чтобы узнать account_id и account_name (Token их не содержит)."""
+    return User(
+        account_id=current_user["account_id"],
+        account_name=current_user["account_name"],
+        email=current_user["email"],
+    )
 
 @router.post("/register", response_model=User)
 def register_user(user: UserCreate):

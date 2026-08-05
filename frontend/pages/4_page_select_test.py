@@ -1,11 +1,16 @@
 import streamlit as st
-from streamlit.components.v1 import html
 from streamlit_extras.stylable_container import stylable_container
 
-with open("button_style.css") as b:
-    button_style = b.read()
+import api_client
+from auth_utils import require_login, render_logout_sidebar
+from styles import read_css, hide_streamlit_chrome
 
 st.set_page_config(page_title="Выбрать тест", page_icon="💻", layout="wide")
+hide_streamlit_chrome()
+
+button_style = read_css("button_style.css")
+
+require_login()
 
 # Custom CSS for styling
 st.markdown("""
@@ -19,13 +24,6 @@ st.markdown("""
     }
     .test-card:hover {
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    .difficulty-tag {
-        display: inline-block;
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-size: 0.8em;
-        margin-right: 5px;
     }
     .topic-tag {
         display: inline-block;
@@ -54,113 +52,97 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+if st.button("← Главная", key="home_button"):
+    st.switch_page("home_page.py")
+
 st.markdown(
-        """
-        <div class="home-button">
-            <a href="/" target="_self">
-                <button style="background-color: #f0f0f0; color: black; border: 1px solid #ddd; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                    ←  Главная
-                </button>
-            </a>
-        </div>
-        """,
+    '<div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">'
+    '<span style="font-size:2rem; font-weight:700;">Доступные тесты</span>'
+    '<span style="font-size:1rem; color:#666;">Выбери предмет и темы, по которым хочешь пройти тестирование</span>'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+try:
+    subjects = api_client.get_subjects()
+except api_client.ApiError as exc:
+    st.error(f"Не удалось загрузить список тем: {exc}")
+    subjects = []
+
+if not subjects:
+    st.info("В базе пока нет вопросов. Добавь свой первый вопрос на странице «Создать тест».")
+    st.page_link("pages/7_page_create_test.py", label="Создать вопрос", icon="➕")
+    render_logout_sidebar()
+    st.stop()
+
+subject_names = [s["subject"] for s in subjects]
+themes_by_subject = {s["subject"]: s["themes"] for s in subjects}
+
+# Рекомендованные темы на основе статистики пользователя
+try:
+    recommended = api_client.get_recommendations(limit=3)
+except api_client.ApiError:
+    recommended = []
+
+if recommended:
+    st.markdown(
+        '<div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-top:1rem;">'
+        '<span style="font-size:1.5rem; font-weight:700;">Рекомендованные темы</span>'
+        '<span style="font-size:0.9rem; color:#666;">Основано на твоих прошлых результатах '
+        '(или на самых больших темах, если ты ещё не проходил тесты)</span>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        "".join(f'<span class="topic-tag">{t}</span>' for t in recommended),
         unsafe_allow_html=True
     )
 
-st.header("Доступные тесты")
-st.subheader("Выбери из имеющихся тестов или создай свой")
+st.header("Настрой тест")
 
-# Filters
-with st.expander("Фильтр тестов"):
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.selectbox("Сложность", ["Все сложности", "Легкий", "Средний", "Сложный"], key="difficulty")
-    
-    with col2:
-        st.selectbox("Время", ["Любая длительность", "< 15 мин", "15-30 мин", "> 30 мин"], key="time_limit")
-    
-    with col3:
-        selected_topics = st.multiselect(
-            "Темы",
-            ["Алгоритмы", "Структуры данных", "Анализ сложности", 
-             "Динамическое программирование", "Сортировка", "Поиск"],
-            default=[],
-            placeholder="Выбери тему"
-        )
-        
-with stylable_container(
-        key="get_started_button",
-        css_styles=button_style,
-        ):
-            st.button("Сделать свой тест", type="primary")
+selected_subject = st.selectbox("Предмет", subject_names, key="select_subject")
+available_themes = themes_by_subject.get(selected_subject, [])
 
-# Recommended section
-st.header("Рекомендовано")
-st.write("Основано на твоих прошлых результатах тестов")
+selected_themes = st.multiselect(
+    "Темы",
+    available_themes,
+    default=available_themes,
+    placeholder="Выбери одну или несколько тем",
+    key="select_themes"
+)
 
-# Recommended test card
-with st.container():
-    st.markdown("""
-    <div class="test-card">
-        <h3>Непростые алгоритмы</h3>
-        <p>Попытайся одолеть их!</p>
-        <p><strong>8 вопросов</strong> | <strong>25 минут</strong></p>
-        <span class="topic-tag">Алгоритмы</span>
-        <div style="margin-top: 15px;">
-            <button style="background-color: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Начать тест</button>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+col1, col2 = st.columns(2)
+with col1:
+    question_count = st.number_input(
+        "Максимум вопросов", min_value=1, max_value=50, value=10, step=1
+    )
+with col2:
+    time_limit_minutes = st.number_input(
+        "Лимит времени (минут, 0 = без ограничения)", min_value=0, max_value=180, value=15, step=5
+    )
 
-# Available tests section
-st.header("Доступные тесты")
+with stylable_container(key="start_test_button", css_styles=button_style):
+    start_clicked = st.button("Начать тест", type="primary", use_container_width=True)
 
-# Test 1
-with st.container():
-    st.markdown("""
-    <div class="test-card">
-        <h3>Основы структур данных</h3>
-        <p>Протестируй свои знания в структурах данных</p>
-        <p><strong>15 вопросов</strong> | <strong>30 минут</strong></p>
-        <span class="topic-tag">Структуры данных</span>
-        <div style="margin-top: 15px;">
-            <button style="background-color: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Начать тест</button>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+if start_clicked:
+    if not selected_themes:
+        st.error("Выбери хотя бы одну тему")
+    else:
+        st.session_state["quiz_config"] = {
+            "subject": selected_subject,
+            "themes": selected_themes,
+            "question_count": int(question_count),
+            "time_limit": int(time_limit_minutes) * 60 if time_limit_minutes else None,
+        }
+        # Сбрасываем состояние предыдущего прохождения теста
+        for key in ("quiz_questions", "current_question", "answers", "question_status",
+                    "start_time", "question_start_time", "last_result"):
+            st.session_state.pop(key, None)
+        st.switch_page("pages/5_page_quiz.py")
 
-# Test 2
-with st.container():
-    st.markdown("""
-    <div class="test-card">
-        <h3>Анализ алгоритмов</h3>
-        <p>Вопросы о сложностной оценки по времени и по памяти</p>
-        <p><strong>10 вопросов</strong> | <strong>20 минут</strong></p>
-        <span class="topic-tag">Алгоритмы</span>
-        <span class="topic-tag">Сложностной анализ</span>
-        <div style="margin-top: 15px;">
-            <button style="background-color: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Начать тест</button>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+st.divider()
+with stylable_container(key="create_test_button", css_styles=button_style):
+    if st.button("Добавить свой вопрос", use_container_width=True):
+        st.switch_page("pages/7_page_create_test.py")
 
-# Test 3 with warning
-with st.container():
-    st.markdown("""
-    <div class="test-card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h3>Проблемы динамики</h3>
-                <p>Решай динамическое программирование</p>
-                <p><strong>7 вопросов</strong> | <strong>30 минут</strong></p>
-                <span class="topic-tag">Динамическое программирование</span>
-                <span class="topic-tag">Алгоритмы</span>
-            </div>
-            <div style="color: orange; font-weight: bold;">Давно не изучал эту тему!</div>
-        </div>
-        <div style="margin-top: 15px;">
-            <button style="background-color: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Начать тест</button>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+render_logout_sidebar()

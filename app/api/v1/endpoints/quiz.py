@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.api.deps import get_current_user
 from app.schemas.quiz import (
     Question, Answer, TestResult, UserStatistics,
-    ThemeStatistics, TestSettings
+    ThemeStatistics, TestSettings, QuestionWithAnswersCreate, SubjectThemes,
+    LeaderboardEntry
 )
 from app.services.quiz import (
     get_questions,
@@ -11,10 +12,37 @@ from app.services.quiz import (
     save_test_result,
     get_user_statistics,
     get_theme_statistics,
-    get_recommended_themes
+    get_recommended_themes,
+    get_subjects_themes,
+    create_question,
+    get_leaderboard
 )
 
 router = APIRouter()
+
+@router.get("/subjects", response_model=List[SubjectThemes])
+def read_subjects(current_user: dict = Depends(get_current_user)):
+    """Список предметов и тем, доступных для тестирования (для выбора теста)."""
+    return get_subjects_themes()
+
+@router.get("/leaderboard", response_model=List[LeaderboardEntry])
+def read_leaderboard(
+    limit: int = 20,
+    current_user: dict = Depends(get_current_user)
+):
+    """Топ пользователей по среднему проценту правильных ответов."""
+    return get_leaderboard(limit=limit)
+
+@router.post("/questions", response_model=Question)
+def create_new_question(
+    question: QuestionWithAnswersCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Позволяет залогиненному пользователю добавить свой вопрос в банк вопросов."""
+    try:
+        return create_question(question)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 @router.get("/questions", response_model=List[Question])
 def read_questions(

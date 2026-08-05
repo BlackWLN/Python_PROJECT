@@ -1,14 +1,19 @@
 import streamlit as st
-from streamlit.components.v1 import html
 
+import api_client
+from auth_utils import log_in, is_authenticated, is_valid_email
+from styles import read_css, hide_streamlit_chrome
 
 st.set_page_config(page_title="Зарегистрироваться", page_icon="💻", layout="wide")
+hide_streamlit_chrome()
 
-with open("style.css") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+st.markdown(f"<style>{read_css('style.css')}</style>", unsafe_allow_html=True)
+button_style = read_css("button_style.css")
 
-with open("button_style.css") as b:
-    button_style = b.read()
+if is_authenticated():
+    st.success("Вы уже вошли в аккаунт.")
+    st.page_link("home_page.py", label="На главную", icon="🏠")
+    st.stop()
 
 # Main
 col1, col2, col3 = st.columns([1, 4, 1])
@@ -17,31 +22,44 @@ with col2:
     st.markdown(
         """
         <div style="text-align: left; margin-bottom: 20px;">
-            <button onclick="window.history.back()" class="back-button">← Вернуться домой</button>
+            <button onclick="window.history.back()" class="back-button">← Вернуться</button>
         </div>
         """,
         unsafe_allow_html=True
     )
-    
+
     st.markdown("<h1 style='text-align: center;'>Добро пожаловать!</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #666; margin-bottom: 30px;'>Зарегистрируйтесь, чтобы следить за своими результатами</p>", unsafe_allow_html=True)
-    
-    with st.form("login_form"):
+
+    with st.form("signup_form"):
         name = st.text_input("Имя", placeholder="Введите имя")
         email = st.text_input("Почта", placeholder="Введите почту")
         password = st.text_input("Пароль", type="password", placeholder="Введите пароль")
-        sign_in = st.form_submit_button("Зарегистрироваться", use_container_width=True)
-        
-        if sign_in:
-            if email and password and name:
-                st.success("Успешно!")
+        sign_up = st.form_submit_button("Зарегистрироваться", use_container_width=True)
+
+        if sign_up:
             if not name:
                 st.error("Введите имя")
-            if not email:
+            elif not email:
                 st.error("Введите почту")
-            if not password:
+            elif not is_valid_email(email):
+                st.error("Введите корректный email, например name@example.com")
+            elif not password:
                 st.error("Введите пароль")
-    
+            elif len(password) < 6:
+                st.error("Пароль должен быть не короче 6 символов")
+            else:
+                try:
+                    api_client.register(name, email, password)
+                    log_in(email, password)
+                    st.success("Успешно! Переходим...")
+                    st.switch_page("home_page.py")
+                except api_client.ApiError as exc:
+                    if exc.status_code == 400:
+                        st.error("Этот email уже зарегистрирован")
+                    else:
+                        st.error(f"Не удалось зарегистрироваться: {exc}")
+
     st.markdown(
         """
         <div style="display: flex; align-items: center; margin: 20px 0;">
@@ -52,12 +70,5 @@ with col2:
         """,
         unsafe_allow_html=True
     )
-    
-    st.markdown(
-        """
-        <div style="text-align: center; margin-top: 20px;">
-        <a href="#" style="color: #4a8bfc; text-decoration: none;">Войти</a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+
+    st.page_link("pages/1_page_sign_in.py", label="Войти", icon="🔑")

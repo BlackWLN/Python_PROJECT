@@ -1,7 +1,81 @@
 from typing import List, Optional, Dict
 from datetime import datetime
 from app.db.session import get_db
-from app.schemas.quiz import Question, Answer, TestResult, UserStatistics, ThemeStatistics
+from app.schemas.quiz import (
+    Question, Answer, TestResult, UserStatistics, ThemeStatistics,
+    QuestionWithAnswersCreate, SubjectThemes, LeaderboardEntry
+)
+
+
+def get_leaderboard(limit: int = 20) -> List[LeaderboardEntry]:
+    """Топ пользователей по среднему проценту правильных ответов.
+    Считаем только тех, кто уже прошёл хотя бы один вопрос."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    a.account_id,
+                    a.account_name,
+                    COUNT(DISTINCT h.test_date) AS total_tests,
+                    AVG(CASE WHEN h.result = true THEN 1 ELSE 0 END) AS average_score
+                FROM accounts a
+                JOIN history h ON h.account_id = a.account_id
+                GROUP BY a.account_id, a.account_name
+                ORDER BY average_score DESC, total_tests DESC
+                LIMIT %s
+            """, (limit,))
+            return [
+                LeaderboardEntry(
+                    account_id=row[0],
+                    account_name=row[1],
+                    total_tests=row[2],
+                    average_score=float(row[3]),
+                )
+                for row in cur.fetchall()
+            ]
+
+
+def get_subjects_themes() -> List[SubjectThemes]:
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT DISTINCT subject, theme FROM questions ORDER BY subject, theme"
+            )
+            grouped: Dict[str, List[str]] = {}
+            for subject, theme in cur.fetchall():
+                grouped.setdefault(subject, [])
+                if theme not in grouped[subject]:
+                    grouped[subject].append(theme)
+            return [SubjectThemes(subject=s, themes=t) for s, t in grouped.items()]
+
+
+def create_question(question: QuestionWithAnswersCreate) -> Question:
+    if not question.answers:
+        raise ValueError("At least one answer option is required")
+    if not any(a.is_correct for a in question.answers):
+        raise ValueError("At least one answer must be marked correct")
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO questions(question_text, theme, subject) VALUES (%s, %s, %s) RETURNING question_id",
+                (question.question_text, question.theme, question.subject)
+            )
+            question_id = cur.fetchone()[0]
+
+            for idx, answer in enumerate(question.answers, start=1):
+                cur.execute(
+                    "INSERT INTO answers(answer_id, answer_text, is_correct, question_id) VALUES (%s, %s, %s, %s)",
+                    (idx, answer.answer_text, answer.is_correct, question_id)
+                )
+            conn.commit()
+
+            return Question(
+                question_id=question_id,
+                question_text=question.question_text,
+                theme=question.theme,
+                subject=question.subject
+            )
 
 def get_questions(subject: Optional[str] = None, theme: Optional[str] = None) -> List[Question]:
     with get_db() as conn:
@@ -76,7 +150,23 @@ def get_user_statistics(account_id: int, subject: Optional[str] = None) -> UserS
                 WHERE account_id = %s
             """, (account_id,))
             stats = cur.fetchone()
-            
+
+            # Пользователь ещё не проходил ни одного теста - отдаём пустую статистику
+            # вместо падения на делении/приведении None к числу ниже.
+            if not stats or not stats[1]:
+                return UserStatistics(
+                    total_tests=0,
+                    total_questions=0,
+                    correct_answers=0,
+                    average_score=0.0,
+                    rank=0,
+                    total_users=0,
+                    weak_themes=[],
+                    strong_themes=[],
+                    recent_results=[],
+                    time_spent=0
+                )
+
             # Рейтинг пользователя
             cur.execute("""
                 WITH user_scores AS (
@@ -109,8 +199,8 @@ def get_user_statistics(account_id: int, subject: Optional[str] = None) -> UserS
                 JOIN questions q ON h.question_id = q.question_id
                 WHERE h.account_id = %s
                 GROUP BY q.theme
-                ORDER BY 
-                    CASE WHEN h.result = true THEN 1 ELSE 0 END / COUNT(*) ASC
+                ORDER BY
+                    SUM(CASE WHEN h.result = true THEN 1 ELSE 0 END)::float / COUNT(*) ASC
             """, (account_id,))
             theme_stats = cur.fetchall()
             
@@ -199,8 +289,8 @@ def get_recommended_themes(account_id: int, limit: int = 3) -> List[str]:
                     JOIN questions q ON h.question_id = q.question_id
                     WHERE h.account_id = %s
                     GROUP BY q.theme
-                    ORDER BY 
-                        CASE WHEN h.result = true THEN 1 ELSE 0 END / NULLIF(COUNT(*), 0) ASC
+                    ORDER BY
+                        SUM(CASE WHEN h.result = true THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0) ASC
                     LIMIT %s
                 """, (account_id, limit))
             else:

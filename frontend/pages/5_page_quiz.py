@@ -1,181 +1,258 @@
-import streamlit as st
+import random
 import time
+from collections import defaultdict
 
-# Data
-questions = [
-    {
-        "question": "Какая структура данных использует принцип 'первый зашел - первый вышел'?",
-        "type": "multiple_choice",
-        "options": ["Очередь", "Стэк", "Связный список", "Дерево"],
-        "correct_answer": "Cтэк",
-    },
-    {
-        "question": "Какая временная сложность добавления элемента в массив?",
-        "type": "multiple_choice",
-        "options": ["O(1)", "O(n)", "O(log n)", "O(n^2)"],
-        "correct_answer": "O(1)",
-    },
-    {
-        "question": "Как называется бинарное дерево, в котором каждый узел имеет или ноль или два ребенка?",
-        "type": "multiple_choice",
-        "options": ["Полное дерево", "Завершенное дерево", "Идеальное дерево", "Сбалансированное дерево"],
-        "correct_answer": "Полное дерево",
-    },
-    {
-        "question": "Объясни разницу между стэком и очередью.",
-        "type": "text",
-    },
-    {
-        "question": "Что подразумевается под временной сложностью?",
-        "type": "text",
-    },
-    {
-        "question": "Какая временная сложность поиска элемента в массиве?",
-        "type": "multiple_choice",
-        "options": ["O(1)", "O(n)", "O(log n)", "O(n^2)"],
-        "correct_answer": "O(n)",
-    },
-]
+import streamlit as st
+from streamlit_extras.stylable_container import stylable_container
 
-if "current_question" not in st.session_state:
-    st.session_state.current_question = 0
-if "answers" not in st.session_state:
-    st.session_state.answers = [""] * len(questions)
-if "question_status" not in st.session_state:
-    st.session_state.question_status = ["Нет ответа"] * len(questions)
-if "start_time" not in st.session_state:
-    st.session_state.start_time = time.time()
-if "timer_running" not in st.session_state:
-    st.session_state.timer_running = True 
-if "total_time" not in st.session_state:
-    st.session_state.total_time = 30 * 60  # 30 minutes
+import api_client
+from auth_utils import require_login, render_logout_sidebar
+from styles import hide_streamlit_chrome
 
-def format_time(seconds):
-    minutes, seconds = divmod(seconds, 60)
-    return f"{int(minutes):02}:{int(seconds):02}"
+st.set_page_config(page_title="Прохождение теста", page_icon="💻", layout="wide")
+hide_streamlit_chrome()
 
-def next_question():
-    st.session_state.current_question = min(
-        st.session_state.current_question + 1, len(questions) - 1
-    )
+require_login()
 
-def prev_question():
-    st.session_state.current_question = max(
-        st.session_state.current_question - 1, 0
-    )
+if "quiz_config" not in st.session_state:
+    st.warning("Сначала выбери тест.")
+    st.page_link("pages/4_page_select_test.py", label="Выбрать тест", icon="📝")
+    render_logout_sidebar()
+    st.stop()
 
-def submit_answer():
-    question_index = st.session_state.current_question
-    current_question_data = questions[question_index]
 
-    if current_question_data["type"] == "multiple_choice":
-        if st.session_state.selected_option:
-            st.session_state.answers[question_index] = st.session_state.selected_option
-            st.session_state.question_status[question_index] = "Ответ сохранён"
-    elif current_question_data["type"] == "text":
-        if st.session_state.text_answer:
-            st.session_state.answers[question_index] = st.session_state.text_answer
-            st.session_state.question_status[question_index] = "Ответ сохранён"
+def format_time(seconds: int) -> str:
+    minutes, seconds = divmod(max(0, int(seconds)), 60)
+    return f"{minutes:02}:{seconds:02}"
 
-def navigate_to_question(question_number):
-    st.session_state.current_question = question_number
 
-def finish_test():
-    st.session_state.timer_running = False
-    st.write("Тест завершен!")
+@st.cache_data(show_spinner=False, ttl=300)
+def _fetch_answers(question_id: int):
+    return api_client.get_answers(question_id)
 
-st.set_page_config(page_title="Основы структур данных", page_icon="💻", layout="centered")
 
-st.markdown(
-        """
-        <div class="home-button">
-            <a href="/" target="_self">
-                <button style="background-color: #f0f0f0; color: black; border: 1px solid #ddd; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                    ←  Главная
-                </button>
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+def build_quiz():
+    config = st.session_state["quiz_config"]
+    pool = []
+    for theme in config["themes"]:
+        try:
+            pool.extend(api_client.get_questions(subject=config["subject"], theme=theme))
+        except api_client.ApiError as exc:
+            st.error(f"Не удалось загрузить вопросы по теме «{theme}»: {exc}")
 
-st.markdown("""
-    <style>
-        div[data-testid="stVerticalBlock"] > div[data-testid="stHorizontalBlock"] > div:first-child > div > div > div > button {
-            width: 40px;
-            height: 40px;
-            margin: 2px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+    random.shuffle(pool)
+    pool = pool[: config.get("question_count") or len(pool)]
 
-# Header
+    quiz_questions = []
+    for q in pool:
+        try:
+            answers = _fetch_answers(q["question_id"])
+        except api_client.ApiError:
+            continue
+        if not answers:
+            continue
+        shuffled = answers[:]
+        random.shuffle(shuffled)
+        quiz_questions.append({
+            "question_id": q["question_id"],
+            "question_text": q["question_text"],
+            "theme": q["theme"],
+            "answers": shuffled,  # каждый answer: {answer_id, answer_text, is_correct, question_id}
+        })
+
+    st.session_state["quiz_questions"] = quiz_questions
+    st.session_state["current_question"] = 0
+    st.session_state["selected_answers"] = [None] * len(quiz_questions)
+    st.session_state["question_status"] = ["Нет ответа"] * len(quiz_questions)
+    st.session_state["submitted_flags"] = [False] * len(quiz_questions)
+    st.session_state["start_time"] = time.time()
+    st.session_state["question_first_seen"] = [None] * len(quiz_questions)
+    st.session_state["question_time_spent"] = [0] * len(quiz_questions)
+
+
+if "quiz_questions" not in st.session_state:
+    with st.spinner("Загружаем вопросы..."):
+        build_quiz()
+
+questions = st.session_state["quiz_questions"]
+
+if not questions:
+    st.warning("По выбранным темам не нашлось вопросов с ответами.")
+    st.page_link("pages/4_page_select_test.py", label="Выбрать другой тест", icon="📝")
+    render_logout_sidebar()
+    st.stop()
+
+config = st.session_state["quiz_config"]
+time_limit = config.get("time_limit")
+
+if st.button("← Главная", key="home_button"):
+    st.switch_page("home_page.py")
+
 col1, col2 = st.columns([1, 3])
 with col1:
-    st.markdown("[Выйти из теста](#)")
+    if st.button("Прервать тест"):
+        for key in ("quiz_config", "quiz_questions", "current_question", "selected_answers",
+                    "question_status", "submitted_flags", "start_time", "question_first_seen",
+                    "question_time_spent"):
+            st.session_state.pop(key, None)
+        st.switch_page("pages/4_page_select_test.py")
 
 with col2:
-    if st.session_state.timer_running:
-        time_elapsed = int(time.time() - st.session_state.start_time)
-        remaining_time = max(0, st.session_state.total_time - time_elapsed)
+    elapsed = int(time.time() - st.session_state["start_time"])
+    if time_limit:
+        remaining = max(0, time_limit - elapsed)
+        st.markdown(f"<p style='text-align: right;'>Осталось: {format_time(remaining)}</p>", unsafe_allow_html=True)
+        time_is_up = remaining <= 0
     else:
-        time_elapsed = int(time.time() - st.session_state.start_time)
-        remaining_time = max(0, st.session_state.total_time - time_elapsed)
+        st.markdown(f"<p style='text-align: right;'>Прошло: {format_time(elapsed)}</p>", unsafe_allow_html=True)
+        time_is_up = False
 
-    st.markdown(f"<p style='text-align: right;'>{format_time(remaining_time)}</p>", unsafe_allow_html=True)
+st.title(f"{config['subject']}: тест по выбранным темам")
 
-st.title("Основы структур данных")
+current = st.session_state["current_question"]
 
-# Progress Bar
-progress_value = (st.session_state.current_question + 1) / len(questions)
-col1, col2 = st.columns([3, 1])
+# отмечаем момент первого показа вопроса, чтобы посчитать время ответа
+if st.session_state["question_first_seen"][current] is None:
+    st.session_state["question_first_seen"][current] = time.time()
 
-with col1:
-    st.progress(progress_value)
-with col2:
-    unanswered_count = st.session_state.question_status.count("Нет ответа")
-    st.markdown(f"Вопрос {st.session_state.current_question + 1} из {len(questions)}", unsafe_allow_html=True)
+progress_value = (current + 1) / len(questions)
+st.caption(f"Вопрос {current + 1} из {len(questions)}")
+st.progress(progress_value)
 
-# Main
-col1, col2, col3 = st.columns([1, 5, 2])
 
-with col1:
-    for i in range(len(questions)):
-        status = st.session_state.question_status[i]
-        button_label = f"{i+1}"
-        button_type = "primary" if st.session_state.current_question == i else "secondary"
-        if st.session_state.question_status[i] == "Ответ сохранён":
-            button_type = "primary"
+def navigate_to(idx: int):
+    st.session_state["current_question"] = idx
 
-        st.button(
-            button_label,
-            key=f"nav_{i}",
-            on_click=navigate_to_question,
-            args=(i,),
-            use_container_width=False,
-            type=button_type
-        )
-    
-with col2:
-    st.subheader(f"Вопрос {st.session_state.current_question + 1} из {len(questions)}")
 
-    question_data = questions[st.session_state.current_question]
-    st.write(question_data["question"])
+def save_current_answer():
+    idx = st.session_state["current_question"]
+    selected_id = st.session_state.get(f"radio_{idx}")
+    if selected_id is not None:
+        st.session_state["selected_answers"][idx] = selected_id
+        st.session_state["question_status"][idx] = "Ответ сохранён"
+        first_seen = st.session_state["question_first_seen"][idx]
+        if first_seen:
+            st.session_state["question_time_spent"][idx] = int(time.time() - first_seen)
 
-    if question_data["type"] == "multiple_choice":
-        st.session_state.selected_option = st.radio(
-            "", options=question_data["options"], key=f"radio_{st.session_state.current_question}"
-        )
-    elif question_data["type"] == "text":
-        st.session_state.text_answer = st.text_area(
-            "Пиши свой ответ здесь...",
-            value=st.session_state.answers[st.session_state.current_question],
-            height=150,
-            key=f"text_area_{st.session_state.current_question}",
-        )
 
-    st.button("Сохранить ответ", on_click=submit_answer)
-    
-with col3:
-    if st.button("Завершить", key="finish_button"):
-        st.success("Тест завершён!")
+def submit_all_answers():
+    """Отправляет на бэкенд все отвеченные, но ещё не отправленные вопросы."""
+    for idx, q in enumerate(questions):
+        selected_id = st.session_state["selected_answers"][idx]
+        if selected_id is None or st.session_state["submitted_flags"][idx]:
+            continue
+        try:
+            api_client.submit_answer(
+                question_id=q["question_id"],
+                selected_answer_id=selected_id,
+                time_spent=st.session_state["question_time_spent"][idx] or None,
+            )
+            st.session_state["submitted_flags"][idx] = True
+        except api_client.ApiError as exc:
+            st.error(f"Не удалось сохранить ответ на вопрос {idx + 1}: {exc}")
+
+
+# Навигация по вопросам - сеткой по 5 в ряд, а не одной длинной колонкой
+# (иначе список из 10+ кнопок растягивается на весь экран по вертикали).
+# Кнопки специально маленькие (через stylable_container), чтобы не отвлекали
+# от самого вопроса.
+_nav_button_css = """
+button {
+    padding: 0.1rem 0 !important;
+    min-height: 1.8rem !important;
+    height: 1.8rem !important;
+    font-size: 0.8rem !important;
+}
+"""
+NAV_PER_ROW = 5
+with stylable_container(key="quiz_nav_grid", css_styles=_nav_button_css):
+    for row_start in range(0, len(questions), NAV_PER_ROW):
+        row_indices = range(row_start, min(row_start + NAV_PER_ROW, len(questions)))
+        nav_row_cols = st.columns(NAV_PER_ROW)
+        for col, i in zip(nav_row_cols, row_indices):
+            with col:
+                status = st.session_state["question_status"][i]
+                button_type = "primary" if (current == i or status == "Ответ сохранён") else "secondary"
+                st.button(str(i + 1), key=f"nav_{i}", on_click=navigate_to, args=(i,),
+                          type=button_type, use_container_width=True)
+
+st.divider()
+
+col_main, col_finish = st.columns([4, 1])
+
+with col_main:
+    question_data = questions[current]
+    st.subheader(f"Вопрос {current + 1} из {len(questions)}")
+    st.caption(f"Тема: {question_data['theme']}")
+    st.write(question_data["question_text"])
+
+    options = {a["answer_text"]: a["answer_id"] for a in question_data["answers"]}
+    previously_selected_id = st.session_state["selected_answers"][current]
+    previously_selected_text = next(
+        (text for text, aid in options.items() if aid == previously_selected_id), None
+    )
+    default_index = list(options.keys()).index(previously_selected_text) if previously_selected_text else None
+
+    chosen_text = st.radio(
+        "Выбери ответ:",
+        options=list(options.keys()),
+        index=default_index,
+        key=f"radio_text_{current}",
+    )
+    st.session_state[f"radio_{current}"] = options.get(chosen_text)
+
+    nav_cols = st.columns(3)
+    with nav_cols[0]:
+        if st.button("Сохранить ответ", on_click=save_current_answer):
+            pass
+    with nav_cols[1]:
+        if current > 0 and st.button("Назад"):
+            navigate_to(current - 1)
+            st.rerun()
+    with nav_cols[2]:
+        if current < len(questions) - 1 and st.button("Далее"):
+            save_current_answer()
+            navigate_to(current + 1)
+            st.rerun()
+
+def finish_test():
+    save_current_answer()
+    with st.spinner("Сохраняем результаты..."):
+        submit_all_answers()
+
+    by_theme = defaultdict(lambda: {"total": 0, "correct": 0})
+    total_correct = 0
+    total_answered = 0
+    for i, q in enumerate(questions):
+        selected_id = st.session_state["selected_answers"][i]
+        if selected_id is None:
+            continue
+        total_answered += 1
+        is_correct = any(a["answer_id"] == selected_id and a["is_correct"] for a in q["answers"])
+        by_theme[q["theme"]]["total"] += 1
+        if is_correct:
+            total_correct += 1
+            by_theme[q["theme"]]["correct"] += 1
+
+    st.session_state["last_result"] = {
+        "subject": config["subject"],
+        "total_questions": len(questions),
+        "answered": total_answered,
+        "correct": total_correct,
+        "time_spent": int(time.time() - st.session_state["start_time"]),
+        "by_theme": dict(by_theme),
+    }
+    st.switch_page("pages/6_page_quiz_final.py")
+
+
+with col_finish:
+    unanswered = st.session_state["question_status"].count("Нет ответа")
+    st.metric("Осталось без ответа", unanswered)
+    if st.button("Завершить тест", type="primary"):
+        finish_test()
+
+if time_is_up:
+    st.warning("Время вышло! Завершаем тест...")
+    finish_test()
+
+render_logout_sidebar()
