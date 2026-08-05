@@ -6,8 +6,7 @@
 
 ## Демо
 
-- Фронтенд: 
-- API: 
+https://blackwln-petproject-python.streamlit.app/
 
 ## Об этом проекте кратко
 
